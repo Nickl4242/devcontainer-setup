@@ -1,0 +1,222 @@
+import pandas as pd 
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeClassifier, plot_tree
+from sklearn.metrics import accuracy_score
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.inspection import permutation_importance
+import statsmodels.api as sm
+
+
+
+# Load the dataset from CSV
+gas = pd.read_csv('/workspaces/devcontainer-setup/.devcontainer/GasolineData/Weekly_U.S._All_Grades_All_Formulations_Retail_Gasoline_Prices_Dollars_per_Gallon.csv')
+
+print(gas['Value'].dtype)
+
+# There are no missing values, but we should convert anyway
+
+#convert our year-month column to datetime
+gas['Year-Month'] = pd.to_datetime(gas['Year-Month'].str.strip(), format='%Y-%b')
+
+#convert all our week end dates to datetime
+gas['Week 1 End Date'] = pd.to_datetime(gas['Week 1 End Date'].str.strip(), format='%m/%d')
+
+
+gas['Week 2 End Date'] = pd.to_datetime(gas['Week 2 End Date'].str.strip(), format='%m/%d')
+gas['Week 3 End Date'] = pd.to_datetime(gas['Week 3 End Date'].str.strip(), format='%m/%d')
+gas['Week 4 End Date'] = pd.to_datetime(gas['Week 4 End Date'].str.strip(), format='%m/%d')
+
+#remove whitespace from the value columns
+gas['Value'] = gas['Value'].str.strip()
+gas['Value.1'] = gas['Value.1'].str.strip()
+gas['Value.2'] = gas['Value.2'].str.strip()
+
+#convert our string numbers to floats
+gas['Value'] = gas['Value'].astype(float)
+gas['Value.1'] = gas['Value.1'].astype(float)
+gas['Value.2'] = gas['Value.2'].astype(float)
+
+#If 'TotalCarges' had missing values...(but do it anyway)
+#gas['TotalCharges'] = gas['TotalCharges'].fillna(gas['TotalCharges'].mean())
+
+
+#show us our columns
+print(gas.columns)
+
+#show us any null values within our data set
+print(gas.isnull().sum())
+
+#show us the shape 
+print(gas.shape)
+
+#shows us the first 5 rows of our data
+#print(gas.head())
+
+print(gas.describe(include='all'))
+
+median_value = gas['Value'].median()
+print("Median:", median_value)
+
+
+
+'''
+#Assuming 'Value', 'Value.1', and 'Value.2' are your feature columns
+X = gas[['Value', 'Value.1', 'Value.2']]
+y = gas['Value.3']
+
+#Split the data into training and testing sets
+x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+
+#using entropy as the criterion
+#clf = DecisionTreeClassifier(criterion='entropy')
+#clf.fit(x_train, y_train)
+
+max_depth_value = 7  # You can adjust this value as needed
+
+feature_names = ['Value', 'Value.1', 'Value.2']
+target_names = ['Value.3']
+
+#Initialize the DecisionTreeClassifier with criterion and max_depth
+clf = DecisionTreeClassifier(criterion='entropy', max_depth=max_depth_value)
+
+# Fit the classifier to the training data
+clf.fit(x_train, y_train)
+
+plt.figure(figsize=(15,10,))
+plot_tree(clf, filled=True, feature_names=feature_names, class_names=target_names)
+plt.show()
+
+from sklearn.metrics import accuracy_score
+
+y_pred = clf.predict(x_test)
+print("Accuracy:", accuracy_score(y_test, y_pred))
+
+#convert x_test to a pandas DataFrame
+x_test_df = pd.DataFrame(x_test, columns=['Value', 'Value.1', 'Value.2'])
+
+#convert y _pred to a pandas Series
+y_pred_series = pd.Series(y_pred, name='Predicted')
+
+#Combine x-test_df, actual values, and predictions into DataFrame
+results = pd.concat([x_test_df.reset_index(drop=True), pd.Series(y_test, name='Actual'), y_pred_series], axis=1)
+
+results.to_csv('model_predictions.csv', index=False)
+'''
+
+'''
+#Assuming 'Value', 'Value.1', and 'Value.2' are your feature columns
+gas['Year'] = gas['Year-Month'].dt.year
+gas['Month'] = gas['Year-Month'].dt.month
+gas['Weekday'] = gas['Year-Month'].dt.weekday
+# Add more feature extraction as needed
+
+#Update the feature columns
+X = gas[['Value', 'Value.1', 'Value.2', 'Year', 'Month', 'Weekday']]
+y = gas['Value.3']
+
+#Split the data into training and testing sets
+x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+#Define feature names and target names
+feature_names = X.columns.tolist()
+
+#Initialize the DecisionTreeClassifier with criterion and max_depth
+clf = DecisionTreeClassifier(criterion='entropy', max_depth=5)
+
+#Fit the classifier to the training data
+clf.fit(x_train, y_train)
+
+plt.figure(figsize=(15,10,))
+plot_tree(clf, filled=True, feature_names=feature_names)
+plt.show()
+
+from sklearn.metrics import accuracy_score
+
+y_pred = clf.predict(x_test)
+print("Accuracy:", accuracy_score(y_test, y_pred))
+
+#Convert x_test to a pandas DataFrame
+x_test_df = pd.DataFrame(x_test, columns=feature_names)
+
+#Convert y_pred to a pandas Series
+y_pred_series = pd.Series(y_pred, name=y.name)
+
+#Combine x_test_df, actual values, and predictions into DataFrame
+results = pd.concat([x_test_df.reset_index(drop=True), pd.Series(y_test, name='Actual'), y_pred_series], axis=1)
+
+results.to_csv('model_predictions.csv', index=False)
+
+
+#Assuming 'Value', 'Value.1', and 'Value.2' are your feature columns
+X = gas[['Value', 'Value.1', 'Value.2']]
+y = gas['Value.3']
+
+#Split the data into training and testing sets
+x_train, x_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+#Initialize the kNN classifier
+knn = KNeighborsClassifier(n_neighbors=5)  # You can adjust the number of neighbors (k) as needed
+
+#Fit the classifier to the training data
+knn.fit(x_train, y_train)
+
+#Predict the labels for the test data
+y_pred = knn.predict(x_test)
+
+#Calculate the accuracy of the model
+accuracy = accuracy_score(y_test, y_pred)
+print("Accuracy:", accuracy)
+
+'''
+
+
+from sklearn.linear_model import LinearRegression
+from sklearn.datasets import make_regression
+
+features = ['Value.1', 'Value.2']  # Example features
+X = gas[features]
+y = gas['Value']
+
+#Initialize and fit the Linear Regression model
+model = LinearRegression()
+model.fit(X, y)
+
+from sklearn.metrics import r2_score
+
+#Predict the target variable using the trained model
+y_pred = model.predict(X)
+
+#Compute the R^2 score
+r2 = r2_score(y, y_pred)
+
+print("R^2 score:", r2)
+
+#Predict gas prices for the newest date
+gas_sorted = gas.sort_values(by='Year-Month', ascending=False)
+newest_features = gas_sorted.head(1)[features]
+newest_pred = model.predict(newest_features)
+
+print("Predicted gas price for the newest date:", newest_pred[0])
+#Predict the target variable using the trained model
+entire_dataset_pred = model.predict(gas[features])
+
+#Create a DataFrame to store actual and predicted values
+entire_predictions_df = pd.DataFrame({'Year-Month': gas['Year-Month'], 'Actual': gas['Value'], 'Predicted': entire_dataset_pred})
+
+#Print the first few rows of the predictions DataFrame
+print(entire_predictions_df)
+
+#Plot actual vs predicted values for the entire dataset
+plt.switch_backend('agg')
+plt.figure(figsize=(10, 6))
+plt.scatter(entire_predictions_df['Actual'], entire_predictions_df['Predicted'])
+plt.xlabel('Actual Value')
+plt.ylabel('Predicted Value')
+plt.title('Actual vs Predicted Values (Entire Dataset)')
+plt.show()
+
